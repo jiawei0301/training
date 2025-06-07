@@ -47,7 +47,7 @@ public class UserServlet extends HttpServlet {
                     return;
                 }
                 req.setAttribute("user", u);
-                req.getRequestDispatcher("/WEB-INF/viewUser.jsp").forward(req, resp);
+                req.getRequestDispatcher("/WEB-INF/viewUsers.jsp").forward(req, resp);
                 return;
             }
 
