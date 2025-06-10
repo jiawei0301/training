@@ -2,6 +2,7 @@ package com.example.springpractice.service;
 
 import com.example.springpractice.entity.User;
 import com.example.springpractice.repository.UserRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,12 +16,30 @@ public class UserServiceImpl implements UserService {
     public UserServiceImpl(UserRepository repo) { this.repo = repo; }
 
     @Transactional
-    @Override public List<User> findAll() { return repo.findAll(); }
+    @Override
+    @Cacheable("users")
+    public List<User> findAll() {
+        return repo.findAll();
+    }
+
     @Transactional
-    @Override public Optional<User> findById(Long id) { return repo.findById(id); }
+    @Override
+    @Cacheable(value = "users", key = "#id")
+    public Optional<User> findById(Long id) {
+        return repo.findById(id);
+    }
+
     @Transactional
-    @Override public User save(User user) { return repo.save(user); }
-    @Override public void deleteById(Long id) { repo.deleteById(id); }
+    @Override
+    public User save(User user) {
+        return repo.save(user);
+    }
+
+    @Override
+    @Cacheable(value = "user", key = "#id")
+    public void deleteById(Long id) {
+        repo.deleteById(id);
+    }
 }
 // TODO:
 // 0. fix restful endpoints
