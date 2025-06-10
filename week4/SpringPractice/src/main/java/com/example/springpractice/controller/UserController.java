@@ -4,6 +4,7 @@ import com.example.springpractice.dto.UserDto;
 import com.example.springpractice.entity.User;
 import com.example.springpractice.exception.UserNotFoundException;
 import com.example.springpractice.service.UserService;
+import org.hibernate.Remove;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,9 +12,12 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
-@Controller // @RestController = @Controller + @ResponseBody
+@RestController // @RestController = @Controller + @ResponseBody
 // soap endpoints -----> xml request
 // restful endpoints ------> stateless endpoints
 // 1. HTTP method (verb) + URL ----> rule of thumb: don't contain any verbs
@@ -58,7 +62,7 @@ public class UserController {
     // }
 
     // class C {
-        // @Lazy
+    // @Lazy
     //   private A a;
     // }
 
@@ -76,50 +80,74 @@ public class UserController {
     }
 
     // option1:
-    @RequestMapping(method={RequestMethod.POST, RequestMethod.PUT})
+    //@RequestMapping(method={RequestMethod.POST, RequestMethod.PUT})
     //@RequestMapping(method={RequestMethod.GET, RequestMethod.HEAD})
     // get RequestBody-User
     // ServiceLayer ---> parse user, prepare for insertion/update
     // dao layer ----> insertion/update (difference)
     // option2:
-    // @GetMapping
-    public String listUsers(Model model) {
-        model.addAttribute("users", service.findAll());
-        return "listUsers";
+
+    // Get all users
+    @GetMapping
+    public ResponseEntity<List<UserDto>> getAllUsers() {
+        List<UserDto> dtos = service.findAll().stream()
+                .map(u -> new UserDto(u.getName(), u.getEmail()))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
-    @GetMapping("/new")
-    public String showCreateForm(Model model) {
-        model.addAttribute("user", new User());
-        return "newUser";
+    // GET /users/{id} -- one user by id
+    @GetMapping("/{id}")
+    public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
+        User u = service.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+        UserDto dto = new UserDto(u.getName(), u.getEmail());
+        return ResponseEntity.ok(dto);
     }
 
+    // POST /users
     @PostMapping
-    public String saveUser(@ModelAttribute User user) {
-        service.save(user);
-        return "redirect:/users";
+    public ResponseEntity<UserDto> createUser(@RequestBody UserDto userDto) {
+        // map DTO to entity
+        User toSave = new User();
+        toSave.setName(userDto.getName());
+        toSave.setEmail(userDto.getEmail());
+        User saved = service.save(toSave);
+
+        UserDto dto = new UserDto(saved.getName(), saved.getEmail());
+        URI location = URI.create("/users/" + saved.getId());
+        return ResponseEntity
+                .created(location)
+                .body(dto);
     }
 
-    @GetMapping("/edit/{id}")
-    public String showEditForm(@PathVariable Long id, Model model) {
-        Optional<User> userOpt = service.findById(id);
-        if (userOpt.isPresent()) {
-            model.addAttribute("user", userOpt.get());
-            return "editUser";
-        } else {
-            return "redirect:/users";
-        }
+    // PUT /users/{id}
+    @PutMapping("/{id}")
+    public ResponseEntity<UserDto> updateUser(
+            @PathVariable Long id,
+            @RequestBody UserDto userDto) {
+        User existing = service.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+
+        existing.setName(userDto.getName());
+        existing.setEmail(userDto.getEmail());
+        User updated = service.save(existing);
+
+        UserDto dto = new UserDto(updated.getName(), updated.getEmail());
+        return ResponseEntity.ok(dto);
     }
 
+    // DELETE /users/{id}
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        service.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /*
     @PostMapping("/update")
     public String updateUser(@ModelAttribute User user) {
         service.save(user);
-        return "redirect:/users";
-    }
-
-    @PostMapping("/delete/{id}")
-    public String deleteUser(@PathVariable Long id) {
-        service.deleteById(id);
         return "redirect:/users";
     }
 
@@ -166,6 +194,8 @@ public class UserController {
         return new ResponseEntity<UserDto>(new UserDto(user.getName(), user.getEmail()),
                                             HttpStatus.OK);
         // return new UserDto(user.getName(), user.getEmail());
+
     }
+     */
 
 }
